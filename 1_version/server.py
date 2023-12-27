@@ -1,8 +1,6 @@
 import sys
 import socket
-import select
 import threading
-import re
 
 
 class Server:
@@ -82,13 +80,14 @@ class Server:
                 self.send_message(socket, response)
             elif command == "invite":
                 nick = parts[1]
-                msg = f"User {username} invite you to join canal {self.get_canal_of_user(username)}"
+                msg = f"User {username} invite you to join canal {
+                    self.get_canal_of_user(username)}"
                 self.send_message(self.clients[nick], msg)
             elif command == "join":
                 canal = parts[1]
                 self.join_canal(socket, username, canal)
             elif command == "list":
-                response = f"""Liste des canaux : \n 
+                response = f"""Liste des canaux : \n
                 {self.canaux.keys()}"""
                 self.send_message(socket, response)
             elif command == "msg":
