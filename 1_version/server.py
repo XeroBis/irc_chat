@@ -30,14 +30,15 @@ class Server:
                 t.start()
 
         except Exception as e:
-            print(f"Erreur: {e}")
+            print(f"Erreur start server : {e}")
 
         finally:
             print("Serveur fermé")
             server_socket.close()
 
     def handle_client(self, socket, username):
-        try:
+        
+        try :
             while True:
                 message = socket.recv(1024).decode('utf-8')
                 if not message:
@@ -46,8 +47,8 @@ class Server:
 
         # la connection est fermé
         except Exception as e:
-            print(e)
-
+            print("Erreur handle client : ", e)
+        
         del self.clients[username]
 
         # Si le client était dans un canal, le retirer du canal
@@ -55,7 +56,7 @@ class Server:
             if username in canal_members:
                 canal_members.remove(username)
                 self.send_message_canal(
-                    None, f"{username} a quitté le canal.", canal_name)
+                    None, canal_name, f"{username} a quitté le canal.", )
 
         socket.close()
         return
@@ -64,8 +65,6 @@ class Server:
         if message[0] == "/":
             parts = message.split(" ")
             command = parts[0][1:].lower()
-            print(command)
-            print("parts :", parts)
             if command == "away":
                 if username not in self.away:
                     self.away[username] = message[6:]
@@ -87,9 +86,10 @@ class Server:
                 self.send_message(self.clients[nick], msg)
             elif command == "join":
                 canal = parts[1]
-                password = parts[2][1:len(
-                    parts[2])-1] if parts[2][0] == "[" and parts[2][len(parts[2])-1] == "]" else ""
-                print(password)
+                if len(parts)>2:
+                    password = parts[2][1:len(parts[2])-1] if parts[2][0] == "[" and parts[2][len(parts[2])-1] == "]" else ""
+                else:
+                    password = ""
                 self.join_canal(socket, username, canal, password)
             elif command == "list":
                 response = f"""Liste des canaux : \n
@@ -131,7 +131,6 @@ class Server:
                 self.send_message_canal(
                     username, canal, f"{username} : {message}")
             else:
-                print("ici")
                 self.send_message(socket, "You are in no canal.")
 
     def get_canal_of_user(self, username):
@@ -151,7 +150,8 @@ class Server:
 
         if canal_name not in self.canaux:
             self.canaux[canal_name] = [username]
-            self.canaux_password[canal_name] = password
+            if password != "":
+                self.canaux_password[canal_name] = password
             self.send_message(
                 socket, f"Vous avez crée et rejoint le canal {canal_name}.")
         else:
@@ -173,16 +173,19 @@ class Server:
                                 f"{username} a rejoint le canal.")
 
     def send_message_canal(self, username, canal, message):
-        for user in self.canaux[canal]:
-            if user != username:
-                self.send_message(
-                    self.clients[user], f"canal {canal} : {message}")
+        try:
+            for user in self.canaux[canal]:
+                if user != username:
+                    self.send_message(
+                        self.clients[user], f"canal {canal} : {message}")
+        except Exception as e:
+            print("Erreur envoi message canal :", e)
 
     def send_message(self, socket, message):
         try:
             socket.send(message.encode('utf-8'))
         except Exception as e:
-            print(e)
+            print("Erreur envoi message :", e)
 
 
 def main():
