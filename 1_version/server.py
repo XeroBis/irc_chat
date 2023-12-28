@@ -9,6 +9,7 @@ class Server:
         self.host = '127.0.0.1'
         self.clients = {}
         self.canaux = {}
+        self.canaux_password = {}
         self.away = {}
         self.start_server()
 
@@ -64,6 +65,7 @@ class Server:
             parts = message.split(" ")
             command = parts[0][1:].lower()
             print(command)
+            print("parts :", parts)
             if command == "away":
                 if username not in self.away:
                     self.away[username] = message[6:]
@@ -85,7 +87,10 @@ class Server:
                 self.send_message(self.clients[nick], msg)
             elif command == "join":
                 canal = parts[1]
-                self.join_canal(socket, username, canal)
+                password = parts[2][1:len(
+                    parts[2])-1] if parts[2][0] == "[" and parts[2][len(parts[2])-1] == "]" else ""
+                print(password)
+                self.join_canal(socket, username, canal, password)
             elif command == "list":
                 response = f"""Liste des canaux : \n
                 {self.canaux.keys()}"""
@@ -136,7 +141,7 @@ class Server:
 
         return None
 
-    def join_canal(self, socket, username, canal_name):
+    def join_canal(self, socket, username, canal_name, password):
         """
         Rejoint un canal ou le crée s'il n'existe pas.
         """
@@ -146,12 +151,23 @@ class Server:
 
         if canal_name not in self.canaux:
             self.canaux[canal_name] = [username]
+            self.canaux_password[canal_name] = password
             self.send_message(
                 socket, f"Vous avez crée et rejoint le canal {canal_name}.")
         else:
-            self.canaux[canal_name].append(username)
-            self.send_message(
-                socket, f"Vous avez rejoint le canal {canal_name}.")
+            if canal_name in self.canaux_password:
+                if password == self.canaux_password[canal_name]:
+                    self.canaux[canal_name].append(username)
+                    self.send_message(
+                        socket, f"Vous avez rejoint le canal {canal_name}.")
+                else:
+                    self.send_message(
+                        socket, f"Mauvais mot de passe. Vous n'avez pas rejoint le canal {canal_name}.")
+                    return
+            else:
+                self.canaux[canal_name].append(username)
+                self.send_message(
+                    socket, f"Vous avez rejoint le canal {canal_name}.")
 
         self.send_message_canal(username, canal_name,
                                 f"{username} a rejoint le canal.")
