@@ -7,7 +7,8 @@ import logging
 class Server:
     def __init__(self, port):
         self.port = int(port)
-        logging.basicConfig(filename=f'server_{port}.log', encoding='utf-8', level=logging.INFO)
+        logging.basicConfig(filename=f'server_{
+                            port}.log', encoding='utf-8', level=logging.INFO)
         self.host = '127.0.0.1'
         self.clients = {}
         self.canaux = {}
@@ -40,7 +41,7 @@ class Server:
 
     def handle_client(self, socket, username):
         logging.info(f"Handle client start for username : {username}, and socket : {socket} ")
-        try :
+        try:
             while True:
                 message = socket.recv(1024).decode('utf-8')
                 if not message:
@@ -49,8 +50,9 @@ class Server:
 
         # la connection est fermé
         except Exception as e:
-            logging.info(f"Handle client stop for username : {username}, and socket : {socket} ")
-        
+            logging.info(f"Handle client stop for username : {
+                         username}, and socket : {socket} ")
+
         del self.clients[username]
 
         # Si le client était dans un canal, le retirer du canal
@@ -70,7 +72,8 @@ class Server:
             if command == "away":
                 if username not in self.away:
                     self.away[username] = message[6:]
-                    logging.info(f"user {username} is now away with the message : {message[6:]}")
+                    logging.info(
+                        f"user {username} is now away with the message : {message[6:]}")
                 else:
                     del self.away[username]
                     logging.info(f"user {username} is no longer away")
@@ -89,15 +92,16 @@ class Server:
                 canal = self.get_canal_of_user(username)
                 msg = f"User {username} invite you to join canal {canal}"
                 self.send_message(self.clients[nick], msg)
-                logging.info(f"user {username} invited user {nick} on canal {canal}")
+                logging.info(f"user {username} invited user {
+                             nick} on canal {canal}")
             elif command == "join":
                 canal = parts[1]
-                if len(parts)>2:
-                    password = parts[2][1:len(parts[2])-1] if parts[2][0] == "[" and parts[2][len(parts[2])-1] == "]" else ""
+                if len(parts) > 2:
+                    password = parts[2][1:len(
+                        parts[2])-1] if parts[2][0] == "[" and parts[2][len(parts[2])-1] == "]" else ""
                 else:
                     password = ""
                 self.join_canal(socket, username, canal, password)
-
             elif command == "list":
                 response = f"""Liste des canaux : \n"""
                 for key in list(self.canaux.keys()):
@@ -110,19 +114,23 @@ class Server:
                     if target in self.away:
                         self.send_message(
                             socket, f"{target} n'est pas joignable en ce moment, message de sa part : {self.away[target]}")
-                        logging.info(f"user {username} tried to contact {target} but {target} was away")
+                        logging.info(f"user {username} tried to contact {
+                                     target} but {target} was away")
                     else:
                         self.send_message(
                             self.clients[target], "MP de " + message_content)
-                        logging.info(f"user {username} send a message to {target}")
+                        logging.info(
+                            f"user {username} send a message to {target}")
                 elif target in self.canaux:
                     self.send_message_canal(username, target, message_content)
-                    logging.info(f"user {username} send a message to canal {canal}")
+                    logging.info(
+                        f"user {username} send a message to canal {canal}")
                 else:
-                    
+
                     response = "No user of canal where found for :" + target
                     self.send_message(socket, response)
-                    logging.info(f"user {username} send a message to an incorect canal/user")
+                    logging.info(
+                        f"user {username} send a message to an incorect canal/user")
             elif command == "names":
                 if len(parts) == 1:  # il n'y a que /names
                     # on affiche donc tout
@@ -131,13 +139,15 @@ class Server:
                         response += f"   canal {canal} : \n"
                         for user in self.canaux[canal]:
                             response += f"      {user} \n"
-                    logging.info(f"user {username} sent a request for all users.")
+                    logging.info(
+                        f"user {username} sent a request for all users.")
                 else:
                     canal = parts[1]
                     response = f"Liste des utilisateurs du canal {canal} : \n"
                     for user in self.canaux[canal]:
                         response += f"{user} \n"
-                    logging.info(f"user {username} sent a request for all users of canal {canal}.")
+                    logging.info(
+                        f"user {username} sent a request for all users of canal {canal}.")
 
                 self.send_message(socket, response)
         else:
@@ -145,11 +155,12 @@ class Server:
             if canal != None:
                 self.send_message_canal(
                     username, canal, f"{username} : {message}")
-                logging.info(f"user {username} sent a message to canal {canal}")
+                logging.info(
+                    f"user {username} sent a message to canal {canal}")
             else:
                 self.send_message(socket, "You are in no canal.")
-                logging.info(f"user {username} tried to send a message but he was in no canal {canal}")
-
+                logging.info(
+                    f"user {username} tried to send a message but he was in no canal {canal}")
 
     def get_canal_of_user(self, username):
         for canal in self.canaux:
@@ -165,6 +176,8 @@ class Server:
         canal_of_user = self.get_canal_of_user(username)
         if canal_of_user != None:
             self.canaux[canal_of_user].remove(username)
+            self.send_message_canal(username, canal_of_user,
+                                    f"{username} a quitté le canal.")
 
         if canal_name not in self.canaux:
             self.canaux[canal_name] = [username]
@@ -181,7 +194,8 @@ class Server:
                 else:
                     self.send_message(
                         socket, f"Mauvais mot de passe. Vous n'avez pas rejoint le canal {canal_name}.")
-                    logging.info(f"user {username} did not join the canal {canal_name}")
+                    logging.info(
+                        f"user {username} did not join the canal {canal_name}")
                     return
             else:
                 self.canaux[canal_name].append(username)

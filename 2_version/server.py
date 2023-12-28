@@ -1,17 +1,21 @@
 import sys
 import socket
 import threading
+import logging
 
 
 class Server:
     def __init__(self, port, ports):
         self.port = int(port)
+        logging.basicConfig(filename=f'server_{port}.log', encoding='utf-8', level=logging.INFO)
         self.host = '127.0.0.1'
         self.servers = []
         self.clients = {}
         self.clients_others = {}
         self.canaux = {}
+        self.canaux_password = {}
         self.away = {}
+        logging.debug('Server launched')
         self.connect_to_serv(ports)
         self.start_server()
 
@@ -61,53 +65,53 @@ class Server:
             self.server_socket.close()
 
     def handle_server(self, socket):
-        print("serveur :", socket)
+        logging.info(f"handler server start for socket : {socket}")
         try:
             while True:
                 message = socket.recv(1024).decode('utf-8')
                 username = message.split(":")[0]
                 msg = message[len(username) + 2:]
-
-                print("message serveur recu : ", message)
-                print("username deciphered:", username, ".")
-                print("msg deciphered:", msg, ".")
                 if username not in self.clients_others:
                     self.clients_others[username] = socket
                 self.handle_server_message(username, msg)
 
         except Exception as e:
-            print(e)
+            logging.info(f"handler server stopped for socket : {socket}")
 
         return 0
 
     def handle_server_message(self, username, message):
         """
         """
-        print("HANDLE SERVER MESSAGE")
-        print("msg = ",message,". FIN MSG")
-        print("TAILLE MSG :", len(message))
+        logging.info(f"received msg from server : user ={username}. msg ={message}.")
         if message[0] == "/":
-            parts = message.split(" ")
-            command = parts[0][1:].lower()
+            parts = message.split(" ") # on split le message par mot
+            command = parts[0][1:].lower() # on enleve le / devant la commande
             if command == "away":
                 if username not in self.away:
-                    self.away[username] = message[6:]
+                    self.away[username] = message[6:] # on enleve les 6er caractères "/away "
+                    logging.info(f"user {username} is now away with message {message[6:]}")
                 else:
                     del self.away[username]
+                    logging.info(f"user {username} is not longer away")
             elif command == "help":
                 # pas de réaction a un message help recu d'un serveur
                 pass
             elif command == "invite":
                 nick = parts[1]
-                msg = f"User {username} invite you to join canal {
-                    self.get_canal_of_user(username)}"
+                canal = self.get_canal_of_user(username)
+                msg = f"User {username}invite you to join canal {canal}"
                 if nick in self.clients:
                     self.send_message(self.clients[nick], msg)
+                    logging.info(f"user {username} invited user {nick} to canal {canal}")
                 pass
             elif command == "join":
                 canal = parts[1]
-                print(f"User {username} of other server joined canal {canal}")
-                self.join_canal_server(username, canal)
+                if len(parts) > 2:
+                    password = parts[2][1:len(parts[2])-1] if parts[2][0] == "[" and parts[2][len(parts[2])-1] == "]" else ""
+                else :
+                    password = ""
+                self.join_canal_server(username, canal, password)
                 pass
             elif command == "list":
                 # pas de réaction a un message list recu d'un serveur
@@ -115,8 +119,6 @@ class Server:
             elif command == "msg":
                 target = parts[1]
                 message_content = f"{username} : " + " ".join(parts[2:])
-                print("TARGET : ", target)
-                print("CONTENT : ", message_content)
                 if username not in self.away and target in self.clients:
                     if target in self.away:
                         self.send_message(
@@ -136,6 +138,7 @@ class Server:
         return 0
     
     def handle_client(self, socket, username):
+        logging.info(f"Handle client start for username : {username}, and socket : {socket} ")
         try:
             while True:
                 message = socket.recv(1024).decode('utf-8')
@@ -147,7 +150,7 @@ class Server:
 
         # la connection est fermé
         except Exception as e:
-            print(e)
+            logging.info(f"Handle client stop for username : {username}, and socket : {socket} ")
 
         del self.clients[username]
 
@@ -156,10 +159,10 @@ class Server:
             if username in canal_members:
                 canal_members.remove(username)
                 self.send_message_canal(
-                    None, f"{username} a quitté le canal.", canal_name)
+                    None, canal_name, f"{username} a quitté le canal.", )
 
         socket.close()
-        return
+        return 0
 
     def handle_message(self, username, message):
         if message[0] == "/":
@@ -168,8 +171,10 @@ class Server:
             if command == "away":
                 if username not in self.away:
                     self.away[username] = message[6:]
+                    logging.info(f"user {username} is now away with message {message[6:]}")
                 else:
                     del self.away[username]
+                    logging.info(f"user {username} is not longer away")
             elif command == "help":
                 response = """Liste des commandes : \n
                 /away [message] \n
@@ -179,6 +184,7 @@ class Server:
                 /msg [canal|nick] message \n
                 /names [channel]"""
                 self.send_message(self.clients[username], response)
+                logging.info(f"user {username} asked for help")
             elif command == "invite":
                 nick = parts[1]
                 canal = self.get_canal_of_user(username)
@@ -188,19 +194,22 @@ class Server:
                         self.send_message(self.clients[nick], msg)
                     elif nick in self.clients_others:
                         self.send_message(self.clients_others[nick])
+                    logging.info(f"user {username} invited {nick} to the canal {canal}")
                 else:
                     self.send_message(self.clients[username], "You are in no canal")
+                    logging.info(f"user {username} tried to invite {nick}, but {username} was in no canal")
             elif command == "join":
-                
                 canal = parts[1]
-                print(f"User {username} of my server joined canal {canal}")
-                self.join_canal(username, canal)
-                pass
+                if len(parts) > 2:
+                    password = parts[2][1:len(parts[2])-1] if parts[2][0] == "[" and parts[2][len(parts[2])-1] == "]" else ""
+                else:
+                    password = ""
+                self.join_canal(username, canal, password)
             elif command == "list":
-                response = f"""Liste des canaux : \n
-                {self.canaux.keys()}"""
+                response = f"""Liste des canaux : \n"""
+                for key in list(self.canaux.keys()):
+                    response += f"   {key} \n"
                 self.send_message(self.clients[username], response)
-                pass
             elif command == "msg":
                 target = parts[1]
                 message_content = f"{username} :" + " ".join(parts[2:])
@@ -248,7 +257,7 @@ class Server:
 
         return None
 
-    def join_canal_server(self, username, canal):
+    def join_canal_server(self, username, canal, password):
         """
         Fonction pour qu'un user rejoigne un canal quand on recoit le message d'un autre serveur
         la différence est qu'on ne renvoit pas de message à l'utilisateur et qu'on notifie seulement les utilisateurs 
@@ -256,37 +265,67 @@ class Server:
         """
         canal_of_user = self.get_canal_of_user(username)
         if canal_of_user == canal:
-            return
+            logging.info(f"user {username} tried to join the canal {canal} that he was already in")
+            return 0
+        
         if canal_of_user != None:
             self.canaux[canal_of_user].remove(username)
+            self.send_message_canal_server(canal_of_user,
+                                    f"{username} a quitté le canal.")
+            logging.info(f"user {username} left the canal {canal_of_user}")
 
         if canal not in self.canaux:
             self.canaux[canal] = [username]
+            if password != "":
+                self.canaux_password[canal] = password
+                logging.info(f"user {username} created and joined canal {canal} with {password} as password")
+            else:
+                logging.info(f"user {username} created and joined canal {canal} with no password")
         else:
+            if canal in self.canaux_password:
+                if password != self.canaux_password[canal]:
+                    logging.info(f"user {username} tried to join canal {canal} with a wrong password")
+                    return 0
+            
             self.canaux[canal].append(username)
+            logging.info(f"user {username} joined canal {canal}")
 
-        self.send_message_canal_server(canal, f"{username} a rejoint le canal.")
+        self.send_message_canal_server(canal, f"{username}a rejoint le canal.")
         return 0
 
-    def join_canal(self, username, canal):
+    def join_canal(self, username, canal, password):
         """
         Fonction pour rejoindre un canal quand l'user vient du serveur courant
         """
         canal_of_user = self.get_canal_of_user(username)
         if canal_of_user == canal:
-            self.send_message(self.clients[username], f'You already are in canal {canal}')
+            self.send_message(self.clients[username], f'Vous êtes déjà dans ce canal {canal}')
+            logging.info(f"user {username} tried to join the canal {canal} that he was already in")
             return
         if canal_of_user != None:
             self.canaux[canal_of_user].remove(username)
+            self.send_message_canal(username, canal_of_user, f"{username}a quitté le canal.")
+            logging.info(f"user {username} left the canal {canal}")
 
         if canal not in self.canaux:
             self.canaux[canal] = [username]
+            if password != "":
+                self.canaux_password[canal] = password
+                logging.info(f"user {username} created and joined canal {canal} with {password} as password")
+            else :
+                logging.info(f"user {username} created and joined canal {canal} with no password")
             self.send_message(
                 self.clients[username], f"Vous avez crée et rejoint le canal {canal}.")
         else:
+            if canal in self.canaux_password:
+                if password != self.canaux_password[canal]:
+                    self.send_message(self.clients[username], f"Mauvais mot de passe. Vous n'avez pas rejoint le canal {canal}.")
+                    logging.info(f"user {username} tried to join canal {canal} with a wrong password")
+                    return 0
             self.canaux[canal].append(username)
             self.send_message(
                 self.clients[username], f"Vous avez rejoint le canal {canal}.")
+            logging.info(f"user {username} joined canal {canal}")
 
         self.send_message_canal(username, canal, f"{username} a rejoint le canal.")
         return 0
