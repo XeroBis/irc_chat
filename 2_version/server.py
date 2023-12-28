@@ -37,31 +37,29 @@ class Server:
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen()
 
-        print(f"Attente de connexion sur {self.host}:{self.port}...")
+        logging.info(f"Attente de connexion sur {self.host}:{self.port}...")
         try:
             while True:
                 client_socket, client_address = self.server_socket.accept()
 
                 username = client_socket.recv(1024).decode('utf-8')
                 if "$serveur" in username:
-                    print(f"Connexion établie avec serveur d'adresse {client_address}")
+                    logging.info(f"Connexion établie avec serveur d'adresse {client_address}")
                     self.servers.append(client_socket)
                     t = threading.Thread(
                         target=self.handle_server, args=(client_socket,))
                     t.start()
                 else:
-                    print(f"Connexion établie avec {
-                          username} d'adresse : {client_address}")
+                    logging.info(f"Connexion établie avec {username} d'adresse : {client_address}")
                     self.clients[username] = client_socket
                     t = threading.Thread(
                         target=self.handle_client, args=(client_socket, username))
                     t.start()
 
         except Exception as e:
-            print(f"Erreur: {e}")
+            logging.debug(f"Serveur fermé ; Erreur: {e}")
 
         finally:
-            print("Serveur fermé")
             self.server_socket.close()
 
     def handle_server(self, socket):
@@ -247,7 +245,7 @@ class Server:
                 self.send_message_canal(
                     username, canal, f"{username}: {message}")
             else:
-                print("ici")
+                logging.info(f"user {username} tried to send a message but is in no canal.")
                 self.send_message(self.clients[username], "You are in no canal.")
 
     def get_canal_of_user(self, username):
