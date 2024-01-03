@@ -80,6 +80,7 @@ class Server:
 
     def handle_server_message(self, username, message):
         """
+        La fonction gère les messages côté serveur
         """
         logging.info(f"received msg from server : user ={username}. msg ={message}.")
         if message[0] == "/":
@@ -146,13 +147,13 @@ class Server:
                 for sc in self.servers:
                     self.send_message(sc, f"{username} : {message}")
 
-        # la connection est fermé
+        # la connection est fermée
         except Exception as e:
             logging.info(f"Handle client stop for username : {username}, and socket : {socket} ")
 
         del self.clients[username]
 
-        # Si le client était dans un canal, le retirer du canal
+        # Si le client était dans un canal, le retire du canal
         for canal_name, canal_members in self.canaux.items():
             if username in canal_members:
                 canal_members.remove(username)
@@ -221,11 +222,11 @@ class Server:
                 elif target in self.canaux:
                     self.send_message_canal(username, target, f"{message_content}")
                 elif target in self.clients_others:
-                    self.send_message(self.clients_others[target], f"{username} : /msg {target} {" ".join(parts[2:])}")
+                    self.send_message(self.clients_others[target], f"{username} : /msg {target} {' '.join(parts[2:])}")
                 pass
             elif command == "names":
-                if len(parts) == 1:  # il n'y a que /names
-                    # on affiche donc tout
+                if len(parts) == 1:  # cas où il n'y a que /names
+                    # on affiche tout
                     response = "Liste des utilisateurs : \n"
                     for canal in self.canaux:
                         response += f"   canal {canal} : \n"
@@ -293,7 +294,7 @@ class Server:
 
     def join_canal(self, username, canal, password):
         """
-        Fonction pour rejoindre un canal quand l'user vient du serveur courant
+        Fonction pour rejoindre un canal quand l'utilisateur vient du serveur courant
         """
         canal_of_user = self.get_canal_of_user(username)
         if canal_of_user == canal:
@@ -330,7 +331,7 @@ class Server:
     
     def send_message_canal_server(self, canal, message):
         """
-        Fonction pour envoyer un message sur un canal seulement au user du serveur courant
+        Fonction pour envoyer un message sur un canal seulement à l'utilisateur du serveur courant
         """
         for user in self.canaux[canal]:
             if user in self.clients:
@@ -343,7 +344,7 @@ class Server:
 
     def send_message_canal(self, username, canal, message):
         """
-        Fonction pour envoyer un message à tous les user sur tout les serveurs sur un canal
+        Fonction pour envoyer un message à tous les utilisateurs sur un canal indépendamment du serveur
         """
         for user in self.canaux[canal]:
             if user != username: # on n'envoit pas le message a l'utilisateur qui vient de rejoindre
